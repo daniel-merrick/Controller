@@ -33,14 +33,12 @@ void StartTransport::establishCommunicationThread(asio::io_service& ios_, char *
 	CommUnit cu(ios_, workerPort_, localPort_, IP_, std::ref(inQueue), std::ref(outQueue));
 }
 
-
 //comm unit funcs
 CommUnit::CommUnit(asio::io_service& io_service_, char *hostport_, char *localport_, char *host_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue){
 	initializeCommUnit(io_service_, hostport_, localport_, host_, inQueue, outQueue);
 }
 
 void CommUnit::establishServer(short port_, asio::io_service& ios_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue){
-	std::cout << "creating server class" << std::endl;
 	ServerUnit server(ios_, port_, inQueue, outQueue);
 }
 
@@ -51,9 +49,7 @@ void CommUnit::establishClient(asio::io_service& ios_, char *host_, char *port_,
 
 void CommUnit::initializeCommUnit(asio::io_service& io_service_, char *hostport_, char *localport_, char *host_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue){
 
-	std::cout << "establish server threa" << std::endl;	
 	std::thread t1 = std::thread (&CommUnit::establishServer, atoi(localport_), std::ref(io_service_), std::ref(inQueue), std::ref(outQueue));
-	std::cout << "establish client thread" << std::endl;
 	std::thread t2 = std::thread (&CommUnit::establishClient, std::ref(io_service_), host_, hostport_, std::ref(inQueue), std::ref(outQueue));
 		
 	t1.join();
@@ -68,11 +64,10 @@ ClientUnit::ClientUnit(asio::io_service& io_service, char *host, char *port, Que
 	while(ec){
 		asio::connect(socket_, endpoints_, ec);
 	}
-	std::cout << "ClientUnit succesfully connected to a ServerUnit" << std::endl;
+	std::cout << "This CientUnit successfully connected to a ServerUnit" << std::endl;
 	for(;;){
 		send();
 	}
-		
 }
 
 void ClientUnit::send(){
@@ -111,7 +106,6 @@ void ClientUnit::buildPacketToSend(unsigned char *msg_, unsigned char *send_this
 //build header for sending
 void ClientUnit::buildHeader(unsigned char *message_, unsigned char *header_, MessageInfo * msgInfo_){
 	sprintf((char *) header_, "%7d", static_cast<int>(msgInfo_ -> size_));
-	std::cout << "header_: " << header_ << std::endl;
 }
 	
 //server unit funcs
@@ -121,15 +115,14 @@ inQueue(inQueue), outQueue(outQueue){
 		//reconnect ~ if we want the server to always
 		//look for a connection put this function
 		//call in a for loop
-		std::cout << "accepting" << std::endl;
 		accept(); 
 }
 
 //accept connection with client trying to merge on port
 void ServerUnit::accept(){
-	std::cout << "Making connection on port " << port_ << std::endl;
+	std::cout << "This ServerUnit waiting for a ClientUnit to connect on port: " << port_ << std::endl;
 	acceptor_.accept(socket_);
-	std::cout << "ServerUnit successfully connected to a ClientUnit" << std::endl;
+	std::cout << "This ServerUnit is connected to a ClientUnit" << std::endl;
 	for(;;){
 		//connection closed by connected client
 		if(read() == EXIT_FAILURE){
@@ -137,7 +130,7 @@ void ServerUnit::accept(){
 		}
 		
 	}
-	std::cout << "Connection Closed... disconnecting from port "<< port_ << std::endl;
+	std::cout << "A ClientUnit disconnected from this ServerUnit, connection disconnected on port: "<< port_ << std::endl;
 	//close socket so we can search for new peer
 	socket_.close();
 }
@@ -186,10 +179,11 @@ int ServerUnit::read(){
 	
 //retrieve header of packet from socket
 void ServerUnit::getHeader(unsigned char *header_){
+	
 	//read header of length 7 bytes from socket
 	int bytes_read_ = asio::read(socket_, asio::buffer(header_, HEADER_LENGTH), ec);
 	header_[HEADER_LENGTH] = '\0';
-	std::cout << "header_ " << header_ << "header_ atoi'd: " << atoi((char *)header_) << std::endl;
+	
 	//check if we read wrong amount of bytes from socket
 	if(bytes_read_ != 7 && bytes_read_ != 0){
 		std::cout << "Incorrect number of bytes read when reading header" << std::endl;
@@ -201,7 +195,7 @@ void ServerUnit::getBody(MessageInfo *msgInfo_, unsigned char *body_){
 	
 	//read the message from socket
 	int bytes_read_ = asio::read(socket_, asio::buffer(body_, msgInfo_ -> size_));
-	//body_[msgInfo_ -> size_] = '\0';
+	
 	//check if we read wrong about of bytes from the socket
 	if(bytes_read_ != msgInfo_ -> size_ && bytes_read_ != 0){
 		std::cout << "ERROR: incorrect number of bytes read while reading body" <<std::endl;

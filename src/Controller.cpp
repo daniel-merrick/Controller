@@ -16,9 +16,6 @@ using namespace std;
 //#include "opencv2/core.hpp"'
 #include "opencv2/opencv.hpp"
 
-
-
-
 Controller::Controller(int worker, queue<vector<Mat> > *clips, int groupSize, StartTransport * cu) // constructor
 {
 	this->worker = worker;
@@ -27,7 +24,6 @@ Controller::Controller(int worker, queue<vector<Mat> > *clips, int groupSize, St
 	this->cu = cu;
 	messageID = 0;
 } 
-
 
 void Controller::send_group(){
 	while(1) { 
@@ -47,24 +43,39 @@ void Controller::send_group(){
 			lock.unlock();
 			for(int i = 0; i < (groupSize); i++) { // sending 30 frames one by one
 				vector<unsigned char> buf = matWrite(frames[i]);
+
+				//get size of buffer
 				long actual_size = static_cast<long>(buf.size());
-				//converting vector contents to a char * array
+
+				/***************************************************************
+				* The following lines allocates memory for a message to 
+				* store in 'Messageinfo' which will be pushed to the 'outQueue.'
+				* 'MessageInfo' stores information such as the message in an
+				* unsigned char, size of message in a long, and an ID number
+				* as an int.
+				***************************************************************/
+
+				//allocate memory for temp which holds the message stored in vector 'buf
 				unsigned char *temp = (unsigned char *)malloc(sizeof(unsigned char) * (actual_size));;
 				if(temp == NULL){
 					std::cout << "Malloc failed in Controller::send_group() ~ temp" << std::endl;
 					return;
 				}
+				//copy stream return from matframe[i] to unsigned char *
 				memcpy(&temp[0], &buf[0], actual_size);
 
-				//building MessageInfo to push to queue
+				//MessageInfo struct stores information about the message such as size,msg, and ID
 				MessageInfo * push_this = (MessageInfo*)malloc(sizeof(MessageInfo));
 				if(push_this == NULL){
 					std::cout << "Malloc failed in Controller::send_group ~ push_this" << std::endl;
 					return;
 				}
+
+				//push to the queue
 				push_this -> msg_ = temp;
 				push_this -> size_ = actual_size;
 				cu->outQueue.push(push_this); // send to comUnit
+				
 				// ADDED FOR VERIFICATION // REMOVE LATER
 			
 				std::vector<unsigned char> tst(push_this -> size_ * sizeof(unsigned char));
