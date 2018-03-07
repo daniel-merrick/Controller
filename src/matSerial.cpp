@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include "matSerial.hpp"
+#include "../include/matSerial.hpp"
 
 using namespace std;
 using namespace cv;

@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string>
 #include "opencv2/opencv.hpp"
-#include "CommUnit.hpp"
-#include "Controller.hpp"
-#include "matSerial.hpp"
+#include "../include/CommUnit.hpp"
+#include "../include/Controller.hpp"
+#include "../include/matSerial.hpp"
 #include <pthread.h>
 #include <thread>
 //This main fucntion is for testing read_viode() function

@@ -7,8 +7,8 @@
 #include <thread>
 #include <ctime>
 #include "asio.hpp"
-#include "queue.hpp"
-#include "CommUnit.hpp"
+#include "../include/queue.hpp"
+#include "../include/CommUnit.hpp"
 
 #define HEADER_LENGTH 7
 //start transport funcs

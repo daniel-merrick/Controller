@@ -1,14 +1,14 @@
-#include "Controller.hpp"
-#include "matSerial.hpp"
+#include "../include/Controller.hpp"
+#include "../include/matSerial.hpp"
 #include <iostream>
 #include <stdlib.h>
 #include <string>
 #include <queue>
-#include "queue.hpp"
+#include "../include/queue.hpp"
 #include <vector>
 #include <pthread.h>
 #include <bitset>
-#include "CommUnit.hpp"
+#include "../include/CommUnit.hpp"
 using namespace cv;
 using namespace std;
  
