@@ -1,1 +1,1 @@
-sudo g++ -std=c++11 -pthread -I ../asio/asio/include src/mainJ.cpp src/Controller.cpp src/CommUnit.cpp src/matSerial.cpp -o manager -lopencv_core -lopencv_highgui -lopencv_video
+sudo g++ -std=c++11 -pthread -I ../asio/asio/include src/managermain.cpp src/Controller.cpp src/CommUnit.cpp src/matSerial.cpp -o manager -lopencv_core -lopencv_highgui -lopencv_video
