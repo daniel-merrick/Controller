@@ -62,7 +62,7 @@ void Controller::send_group(){
 					return;
 				}
 				//copy stream return from matframe[i] to unsigned char *
-				memcpy(&temp[0], &buf[0], actual_size);
+				memcpy(temp, &buf[0], actual_size * sizeof(unsigned char));
 
 				//MessageInfo struct stores information about the message such as size,msg, and ID
 				MessageInfo * push_this = (MessageInfo*)malloc(sizeof(MessageInfo));
@@ -77,18 +77,20 @@ void Controller::send_group(){
 				cu->outQueue.push(push_this); // send to comUnit
 				
 				// ADDED FOR VERIFICATION // REMOVE LATER
-			
+	/*if(index < 10){		
 				std::vector<unsigned char> tst(push_this -> size_ * sizeof(unsigned char));
-				std::memcpy(&tst[0], &((push_this -> msg_)[0]), push_this -> size_ * sizeof(unsigned char));
+				std::memcpy(&tst[0], push_this -> msg_, push_this -> size_ * sizeof(unsigned char));
 
 				cv::Mat *a = matRead(tst);
 				std::vector<int> params;
 				params.push_back(cv::IMWRITE_JPEG_QUALITY);
 				params.push_back(90);
-				char buff [strlen("serverOutput/final.jpg") + 1];
-				sprintf(buff,"serverOutput/final%d.jpg", index);
+				char buff [strlen("ServerOutput/final.jpg")+1];
+				sprintf(buff,"ServerOutput/final%d.jpg",index);
 				index++;
 				cv::imwrite(buff, *a, params);
+		
+			}*/
 			}
 			
 			
@@ -174,12 +176,9 @@ void Controller::start(){
 		while(!thread0Finish) {
 			pthread_create(&sendThread, NULL, Controller::send_group_thread_callback, this);
 		} 
-		std::cout << "readThread finished" << std::endl;
 		pthread_create(&sendThread, NULL, Controller::send_group_thread_callback, this);
 		pthread_join(readThread, NULL);
-		std::cout << "readThread finished" << std::endl; 
 		pthread_join(sendThread, NULL);
-		std::cout << "sendThread finished" << std::endl;
 		//pthread_exit(NULL);
 }
 

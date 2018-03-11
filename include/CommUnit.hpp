@@ -94,6 +94,7 @@ public:
 	asio::error_code ec;
 	Queue<MessageInfo *> &inQueue;
 	Queue<MessageInfo *> &outQueue;
+	asio::io_service& io_service_;
 };
 
 

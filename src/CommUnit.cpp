@@ -10,10 +10,10 @@
 #include "../include/queue.hpp"
 #include "../include/CommUnit.hpp"
 
-#define HEADER_LENGTH 7
+int HEADER_LENGTH = 7;
 //start transport funcs
 
-StartTransport::StartTransport(std::vector<ConnectionInfo*> v):ios_(){
+StartTransport::StartTransport(std::vector<ConnectionInfo*> v){
 	this -> v = v;
 }
 
@@ -38,12 +38,12 @@ CommUnit::CommUnit(asio::io_service& io_service_, char *hostport_, char *localpo
 	initializeCommUnit(io_service_, hostport_, localport_, host_, inQueue, outQueue);
 }
 
-void CommUnit::establishServer(short port_, asio::io_service& ios_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue){
-	ServerUnit server(ios_, port_, inQueue, outQueue);
+void CommUnit::establishServer(short port_, asio::io_service& ios, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue){
+	ServerUnit server(ios, port_, inQueue, outQueue);
 }
 
-void CommUnit::establishClient(asio::io_service& ios_, char *host_, char *port_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue){
-	ClientUnit client(ios_, host_, port_, inQueue, outQueue);
+void CommUnit::establishClient(asio::io_service& ios, char *host_, char *port_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue){
+	ClientUnit client(ios, host_, port_, inQueue, outQueue);
 
 }
 
@@ -58,7 +58,7 @@ void CommUnit::initializeCommUnit(asio::io_service& io_service_, char *hostport_
 
 //client unit funcs
 ClientUnit::ClientUnit(asio::io_service& io_service, char *host, char *port, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue)
-:socket_(io_service), resolver_(io_service), query_(host,port), ec(), inQueue(inQueue), outQueue(outQueue){
+:io_service_(io_service),socket_(io_service), resolver_(io_service), query_(host,port), ec(), inQueue(inQueue), outQueue(outQueue){
 	endpoints_ = resolver_.resolve(query_);
 	asio::connect(socket_, endpoints_, ec);
 	while(ec){
@@ -71,22 +71,21 @@ ClientUnit::ClientUnit(asio::io_service& io_service, char *host, char *port, Que
 }
 
 void ClientUnit::send(){
+	//pop next message struct from outQueue to send to worker
 	MessageInfo *msgInfo_ = (MessageInfo *) (outQueue.pop());
 	unsigned char *msg_ = msgInfo_ -> msg_;
+	
 	//build header
 	unsigned char header_[HEADER_LENGTH];
 	buildHeader(msg_, header_, msgInfo_);
 
 	//build full packet ~ header + message	
-	unsigned char send_this_[HEADER_LENGTH + msgInfo_ -> size_];
+	unsigned char send_this_[HEADER_LENGTH + msgInfo_ -> size_*sizeof(unsigned char)];
 	buildPacketToSend(msg_, send_this_, header_, msgInfo_);
 
 	//send to socket
-	//std::cout << "Sending Message: " << send_this_ << std::endl;
-	//std::vector<unsigned char> b(HEADER_LENGTH+msgInfo_ -> size_);
 	asio::write(socket_, asio::buffer(send_this_, HEADER_LENGTH + msgInfo_ -> size_), ec);
 
-	//asio::transfer_all(), ec);
 	free(msgInfo_ -> msg_);
 	free(msgInfo_);
 }
@@ -95,12 +94,15 @@ void ClientUnit::send(){
 void ClientUnit::buildPacketToSend(unsigned char *msg_, unsigned char *send_this_, unsigned char *header_, MessageInfo* msgInfo_){
 	
 	//build body	
-	unsigned char body_[msgInfo_ -> size_];
-	std::memcpy(body_, msg_, msgInfo_ -> size_ * sizeof(unsigned char));
-	
-	//concatenate body with header
-	std::memcpy(send_this_, header_, HEADER_LENGTH);
-	std::memcpy(send_this_ + HEADER_LENGTH, body_, msgInfo_ -> size_);
+	unsigned char *body_ = (unsigned char*)malloc(sizeof(unsigned char) * (msgInfo_ -> size_));
+	if (body_ == NULL){
+		std::cout << "Malloc failed in ClientUnit::buildPacketToSend ~ body_" << std::endl;
+		return;
+	}
+	std::memcpy(body_, msg_, (msgInfo_ -> size_) * sizeof(unsigned char));
+	std::memcpy(send_this_, header_, (HEADER_LENGTH) * sizeof(unsigned char));
+	std::memcpy((send_this_) + (HEADER_LENGTH), body_, msgInfo_ -> size_ * sizeof(unsigned char));
+	free(body_);
 }
 
 //build header for sending
@@ -109,7 +111,7 @@ void ClientUnit::buildHeader(unsigned char *message_, unsigned char *header_, Me
 }
 	
 //server unit funcs
-ServerUnit::ServerUnit(asio::io_service& io_service_, short port_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue):port_(port_), ec(), socket_(io_service_), acceptor_(io_service_, tcp::endpoint(tcp::v4(), port_)),
+ServerUnit::ServerUnit(asio::io_service& io_service, short port_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue):port_(port_), ec(), socket_(io_service), acceptor_(io_service, tcp::endpoint(tcp::v4(), port_)),
 inQueue(inQueue), outQueue(outQueue){
 		//if the client hangs up, the server cannot
 		//reconnect ~ if we want the server to always
@@ -170,7 +172,6 @@ int ServerUnit::read(){
 		return EXIT_FAILURE;
 	}
 	
-	//push recieved message to queue
 	//std::cout << "Message Recieved: " << header_ << body_ << std::endl;
 	msgInfo_ -> msg_ = body_;
 	inQueue.push(msgInfo_);
@@ -181,7 +182,7 @@ int ServerUnit::read(){
 void ServerUnit::getHeader(unsigned char *header_){
 	
 	//read header of length 7 bytes from socket
-	int bytes_read_ = asio::read(socket_, asio::buffer(header_, HEADER_LENGTH), ec);
+	long bytes_read_ = asio::read(socket_, asio::buffer(header_, HEADER_LENGTH), ec);
 	header_[HEADER_LENGTH] = '\0';
 	
 	//check if we read wrong amount of bytes from socket
@@ -194,7 +195,7 @@ void ServerUnit::getHeader(unsigned char *header_){
 void ServerUnit::getBody(MessageInfo *msgInfo_, unsigned char *body_){
 	
 	//read the message from socket
-	int bytes_read_ = asio::read(socket_, asio::buffer(body_, msgInfo_ -> size_));
+	long bytes_read_ = asio::read(socket_, asio::buffer(body_, msgInfo_ -> size_));
 	
 	//check if we read wrong about of bytes from the socket
 	if(bytes_read_ != msgInfo_ -> size_ && bytes_read_ != 0){

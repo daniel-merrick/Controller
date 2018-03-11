@@ -13,59 +13,76 @@ using namespace std;
 using namespace cv;
 
 static void testQueue(StartTransport * s){
-	int i = 0;
-//	for ( i = 0; i < 10; i++){
-//		char *tst = (char *)malloc(sizeof(char)*1);
-//		sprintf(tst, "%d", i);
-//		(s -> outQueue).push(tst);
-//	}
+		int i = 0;
+		for ( i = 0; i < 10000; i++){
+			MessageInfo *msgInfo_ = (MessageInfo *)malloc(sizeof(MessageInfo));
+			char *tst = (char *)malloc(sizeof(char)*5);
+			sprintf(tst, "%4d", i);
+			tst[4] = '\0';
+			msgInfo_ -> msg_ = (unsigned char*)tst;
+			msgInfo_ -> size_ = 5;
+			(s -> outQueue).push(msgInfo_);
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		}
 
 }
 int main(int, char**){
 
 
 	//local ports for each ServerUnit to use
-        static char local1_[5] = {'5','0','2','6','\0'};
-        //static char local2_[5] = {'9','9','9','3','\0'};
-        //static char local3_[5] = {'9','9','9','4','\0'};
+	static char local1_[5] = {'5','0','2','6','\0'};
+	static char local2_[5] = {'5','0','2','7','\0'};
+	//static char local3_[5] = {'9','9','9','4','\0'};
 
-        //host ports for each ClientUnit to connect to
-        static char worker1_[5] = {'5','0','2','5','\0'};
-        //static char worker2_[5] = {'4','1','1','2','\0'};
-        //static char worker3_[5] = {'5','1','1','2','\0'};
+	//host ports for each ClientUnit to connect to
+	static char worker1_[5] = {'5','0','2','8','\0'};
+	static char worker2_[5] = {'5','0','2','9','\0'};
+	//static char worker3_[5] = {'5','1','1','2','\0'};
 
-        //local ip address
+	//local ip address
 
-        static char workerIP1_[10] ={'1','2','7','.','0','.','0','.','1','\0'};
-        //static char workerIP2_[10] ={'1','2','7','.','0','.','0','.','1','\0'};
-        //static char workerIP3_[10] ={'1','2','7','.','0','.','0','.','1','\0'};
+	static char workerIP1_[10] ={'1','2','7','.','0','.','0','.','1','\0'};
+	static char workerIP2_[10] ={'1','2','7','.','0','.','0','.','1','\0'};
+	//static char workerIP3_[10] ={'1','2','7','.','0','.','0','.','1','\0'};
 
-        std::vector<ConnectionInfo*> vectorOfConnections;
-        ConnectionInfo *temp = (ConnectionInfo *)malloc(sizeof(ConnectionInfo));
-	if(temp == NULL){
+	std::vector<ConnectionInfo*> vectorOfConnections;
+	ConnectionInfo *temp1 = (ConnectionInfo *)malloc(sizeof(ConnectionInfo));
+	if(temp1 == NULL){
 		std::cout << "Malloc failed in Main" << std::endl;
 		return EXIT_FAILURE;
-	 }
-        temp -> hostIP_ = workerIP1_;
-        temp -> hostPort_ = worker1_;
-        temp -> localPort_ = local1_;
+	}
+	temp1 -> hostIP_ = workerIP1_;
+	temp1 -> hostPort_ = worker1_;
+	temp1 -> localPort_ = local1_;
 	
-       	vectorOfConnections.push_back(temp);
+	ConnectionInfo *temp2 = (ConnectionInfo *)malloc(sizeof(ConnectionInfo));
+	if(temp2 == NULL){
+		std::cout << "Malloc failed in Main" << std::endl;
+		return EXIT_FAILURE;
+	}
+	temp2 -> hostIP_ = workerIP2_;
+	temp2 -> hostPort_ = worker2_;
+	temp2 -> localPort_ = local2_;
 
-  	string filename = "1.mp4";
-  	int groupSize = 30;
-  	queue<vector<Mat>>* clips = new queue<vector<Mat>>();
-  	StartTransport * communicate = new StartTransport(vectorOfConnections);
-	Controller *controller = new Controller(3,clips,5,communicate);
-	std::thread t1 = std::thread (&StartTransport::start, communicate);
-	std::thread t2 = std::thread (&Controller::start, controller);
+	vectorOfConnections.push_back(temp1);
+	vectorOfConnections.push_back(temp2);
+
+	//string filename = "1.mp4";
+	//int groupSize = 30;
+	//queue<vector<Mat>>* clips = new queue<vector<Mat>>();
+	StartTransport * communicate = new StartTransport(vectorOfConnections);
+	std::thread t2 = std::thread (&testQueue, std::ref(communicate));
+	//Controller *controller = new Controller(3,clips,5,std::ref(communicate));
+	std::thread t1 = std::thread (&StartTransport::start, std::ref(communicate));
+	//std::thread t2 = std::thread (&Controller::start, std::ref(controller));
 	t1.join();
 	t2.join();
-		
-	delete[] clips;
+
+	//delete[] clips;
 	delete[] communicate;
-	delete[] controller;
-	free(temp);
+	//delete[] controller;
+	free(temp1);
+	free(temp2);
 	//controller->start();
 	//controller->receive(msgs);
 }

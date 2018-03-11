@@ -11,38 +11,29 @@
 using namespace std;
 using namespace cv;
 
-
+#define NUMBER_OF_FILES_TO_TEST_WRITE 2
 /******************************************
 * This is used to print (in this case) just
-* one image frame to a file. This function
+* one item from the inQueue at a time. This function
 * is called inside a new thread from main 
 * in order to run asynchronously with the 
 * ServerUnit and CommUnit
 *******************************************/
 void printResults(StartTransport * s){
-// ADDED FOR VERIFICATION // REMOVE LATER	
-	int index = 0;
-	while(index != 1){	
-	MessageInfo *msgInfo_ = s -> inQueue.pop();
-	
-	std::vector<unsigned char> buf(msgInfo_ -> size_ * sizeof(unsigned char));
-	std::cout << "printing results, msgInfo_ size: " << msgInfo_ -> size_ << std::endl;	
-	std::memcpy(&buf[0], &((msgInfo_ -> msg_)[0]), msgInfo_ -> size_ * sizeof(unsigned char));
-	cv::Mat *a = matRead(buf);
-	std::vector<int> params;
-	params.push_back(cv::IMWRITE_JPEG_QUALITY);
-	params.push_back(90);
-	//std::cout << "Writting to file" << std::endl;
-	//cv::imshow("window", a);
-	char buff[strlen("clientOutput/o.jpg") + 1];
-	sprintf(buff,"clientOutput/o%d.jpg", index++);
-	cv::imwrite(buff, *a, params);
-	std::cout << "file written" << std::endl;
+	for(;;){
+		if(!(s->inQueue).empty()){
+			MessageInfo *temp = (s->inQueue).pop();
+			std::cout << "Message Received: " << (temp -> msg_) << std::endl;
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			free(temp -> msg_);
+			free(temp);
+		}
 	}
+
 }
 int main(int, char**){
 	//local ports for each ServerUnit to use
-        static char local1_[5] = {'5','0','2','5','\0'};
+        static char local1_[5] = {'5','0','2','8','\0'};
 
         //host ports for each ClientUnit to connect to
         static char worker1_[5] = {'5','0','2','6','\0'};
@@ -75,11 +66,12 @@ int main(int, char**){
 			//'inQueue' is the data that this worker is receiving from the manager
 			//'outQueue' is queue that YOU must push to and want to be sent to the manager
 	StartTransport * s = new StartTransport(v);      
-	std::thread t1 = std::thread(&StartTransport::start, s);
-	std::thread t2 = std::thread(printResults, s);
+	std::thread t1 = std::thread(&StartTransport::start, std::ref(s));
+	std::thread t2 = std::thread(&printResults, std::ref(s));
 	
-	t2.join();
 	t1.join();
+	t2.join();
 
 	delete[] s;
+	free(temp);
 }
