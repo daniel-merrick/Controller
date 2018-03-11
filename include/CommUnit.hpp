@@ -9,13 +9,22 @@
 #include "asio.hpp"
 #include "queue.hpp"
 
-
+/******************************
+* Struct to hold connections
+* information for a CommUnit
+* to initialize it's ServerUnit
+* and ClientUnit
+******************************/
 struct ConnectionInfo{
 	char *hostIP_;
 	char *hostPort_;
 	char *localPort_;
 };
 
+/***************************
+* Struct to hold information
+* about a message
+***************************/
 struct MessageInfo{
 	int ID_;
 	long size_;
@@ -27,7 +36,11 @@ using asio::ip::tcp;
 * Establishes initial call to commUnit
 * initialization. Number of CommUnits 
 * initialized depends on the length of the
-* vector passed to parameters
+* vector passed to the constructor
+* vector holds a type of 'ConnectionInfo'
+* which contains the information for a 
+* CommUnit to create a ServerUnit and 
+* Client Unit
 *****************************************/
 class StartTransport{
 public:
@@ -70,7 +83,6 @@ public:
 * connection. Every ClientUnit depends on a ServerUnit to
 * connect to. ClientUnit WRITES to the socket.
 *********************************************************/
-
 class ClientUnit{
 public:
 
