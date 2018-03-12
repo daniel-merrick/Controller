@@ -32,14 +32,14 @@ void printResults(StartTransport * s){
 
 }
 int main(int, char**){
-	//local ports for each ServerUnit to use
-        static char local1_[5] = {'5','0','2','8','\0'};
+	//local port for this workers ServerUnit to host on
+        static char localPort_[5] = {'5','0','2','8','\0'};
 
-        //host ports for each ClientUnit to connect to
-        static char worker1_[5] = {'5','0','2','6','\0'};
+        //host port for this workers ClientUnit to connect to
+        static char hostPort_[5] = {'5','0','2','6','\0'};
 
-        //host ip address
-        static char workerIP1_[10] ={'1','2','7','.','0','.','0','.','1','\0'};
+        //host ip for this workers ClientUnit to connect to
+        static char hostIP_[10] ={'1','2','7','.','0','.','0','.','1','\0'};
 
 	//fill a vector with structs of 'ConnectionInfo' which
 	//is given as a parameter to StartTransport() function
@@ -48,9 +48,9 @@ int main(int, char**){
 	//is made up of one ServerUnit and one ClientUnit
         std::vector<ConnectionInfo*> v;
         ConnectionInfo *temp = (ConnectionInfo *)malloc(sizeof(ConnectionInfo));
-        temp -> hostIP_ = workerIP1_;
-        temp -> hostPort_ = worker1_;
-        temp -> localPort_ = local1_;
+        temp -> hostIP_ = hostIP_;
+        temp -> hostPort_ = hostPort_;
+        temp -> localPort_ = localPort_;
         v.push_back(temp);
 	
 	/*******************************************************
