@@ -69,7 +69,7 @@ int main(int, char**){
 	StartTransport * communicate = new StartTransport(vectorOfConnections);
 	
 	//thread for filling StartTransport::outQueue, for testing purposes
-	//std::thread t2 = std::thread (&testQueue, std::ref(communicate));
+	std::thread t2 = std::thread (&testQueue, std::ref(communicate));
 	
 	//Controller *controller = new Controller(3,clips,5,std::ref(communicate));
 	
