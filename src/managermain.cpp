@@ -31,7 +31,7 @@ static void testQueue(StartTransport * s){
 
 }
 
-int main(int, char**){
+int main(){
 
 
 	//local ports for this managers ServerUnits to use
@@ -58,25 +58,26 @@ int main(int, char**){
 	temp1 -> hostIP_ = workerIP1_;
 	temp1 -> hostPort_ = workerPort1_;
 	temp1 -> localPort_ = localPort1_;
-	
+
 	vectorOfConnections.push_back(temp1);
 
 	//string filename = "1.mp4";
 	//int groupSize = 30;
 	//queue<vector<Mat>>* clips = new queue<vector<Mat>>();
-	
+
 	//Initial call to build StartTransport class, holds inQueue and outQueue
 	StartTransport * communicate = new StartTransport(vectorOfConnections);
-	
+
 	//thread for filling StartTransport::outQueue, for testing purposes
-	std::thread t2 = std::thread (&testQueue, std::ref(communicate));
-	
-	//Controller *controller = new Controller(3,clips,5,std::ref(communicate));
-	
+	//std::thread t2 = std::thread (&testQueue, std::ref(communicate));
+
+	queue<vector<Mat> > *clips = new queue<vector<Mat>>();
+	Controller *controller = new Controller(3,clips,5,std::ref(communicate));
+
 	//calls function StartTransport::start which builds all CommUnits 
 	std::thread t1 = std::thread (&StartTransport::start, std::ref(communicate));
-	
-	//std::thread t2 = std::thread (&Controller::start, std::ref(controller));
+
+	std::thread t2 = std::thread (&Controller::start, std::ref(controller));
 	t1.join();
 	t2.join();
 
@@ -84,7 +85,8 @@ int main(int, char**){
 	delete[] communicate;
 	//delete[] controller;
 	free(temp1);
-	
+
 	//???
 	//controller->receive(msgs);
+	return 0;
 }

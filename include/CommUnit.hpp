@@ -7,7 +7,7 @@
 #include <thread>
 #include <ctime>
 #include "asio.hpp"
-#include "queue.hpp"
+#include "Queue.hpp"
 
 /******************************
 * Struct to hold connections
@@ -26,6 +26,7 @@ struct ConnectionInfo{
 * about a message
 ***************************/
 struct MessageInfo{
+	int drop_rate_;
 	int ID_;
 	long size_;
 	unsigned char * msg_;
@@ -93,11 +94,16 @@ public:
 	void send();
 	
 	//build packet to send to socket
-	void buildPacketToSend(unsigned char *message_, unsigned char *send_this_, unsigned char *header_, MessageInfo* msgInfo_);
+	//void buildPacketToSend(unsigned char *message_, unsigned char *send_this_, unsigned char *header_, MessageInfo* msgInfo_);
+	void buildPacketToSend(unsigned char *message_, unsigned char *send_this_, unsigned char *header_, MessageInfo* msgInfo_, unsigned char *drop_rate_);
 
 	//build header for sending
-	void buildHeader(unsigned char *message_, unsigned char *header_, MessageInfo* msgInfo_);
-	
+	//void buildHeader(unsigned char *message_, unsigned char *header_, MessageInfo* msgInfo_);
+	void buildHeader(unsigned char *header_, MessageInfo* msgInfo_);
+
+        //build dropping rate string for sending
+        void buildDropRate(unsigned char *drop_rate_, MessageInfo* msgInfo_);
+
 	//variables
 	tcp::resolver resolver_;
 	tcp::resolver::query query_;
@@ -126,7 +132,9 @@ public:
 	
 	//continuously read from socket_
 	int read();
-	
+
+	void getDroppingRate(unsigned char *drop_rate_);
+
 	//retrieve header of packet from socket
 	void getHeader(unsigned char *header_);
 	

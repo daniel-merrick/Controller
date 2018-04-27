@@ -6,12 +6,13 @@
 #include <queue>
 #include <thread>
 #include <ctime>
-#include "asio.hpp"
-#include "../include/queue.hpp"
-#include "../include/CommUnit.hpp"
+#include <asio.hpp>
+#include "CommUnit.hpp"
 
 int HEADER_LENGTH = 7;
+int DROPPING_LENGTH = 2;
 //start transport funcs
+
 
 StartTransport::StartTransport(std::vector<ConnectionInfo*> v){
 	this -> v = v;
@@ -106,24 +107,28 @@ void ClientUnit::send(){
 	//pop next message struct from outQueue to send to worker
 	MessageInfo *msgInfo_ = (MessageInfo *) (outQueue.pop());
 	unsigned char *msg_ = msgInfo_ -> msg_;
-	
+
+        unsigned char drop_rate_[DROPPING_LENGTH];
+        buildDropRate(drop_rate_, msgInfo_);
+
 	//build header
 	unsigned char header_[HEADER_LENGTH];
-	buildHeader(msg_, header_, msgInfo_);
+//	buildHeader(msg_, header_, msgInfo_);
+	buildHeader(header_, msgInfo_);
 
 	//build full packet ~ header + message	
-	unsigned char send_this_[HEADER_LENGTH + msgInfo_ -> size_*sizeof(unsigned char)];
-	buildPacketToSend(msg_, send_this_, header_, msgInfo_);
+	unsigned char send_this_[DROPPING_LENGTH + HEADER_LENGTH + msgInfo_ -> size_*sizeof(unsigned char)];
+	buildPacketToSend(msg_, send_this_, header_, msgInfo_, drop_rate_);
 
 	//send to socket
-	asio::write(socket_, asio::buffer(send_this_, HEADER_LENGTH + msgInfo_ -> size_), ec);
+	asio::write(socket_, asio::buffer(send_this_, DROPPING_LENGTH + HEADER_LENGTH + msgInfo_ -> size_), ec);
 
 	free(msgInfo_ -> msg_);
 	free(msgInfo_);
 }
 	
 //build packet to send to socket
-void ClientUnit::buildPacketToSend(unsigned char *msg_, unsigned char *send_this_, unsigned char *header_, MessageInfo* msgInfo_){
+void ClientUnit::buildPacketToSend(unsigned char *msg_, unsigned char *send_this_, unsigned char *header_, MessageInfo* msgInfo_, unsigned char *drop_rate_){
 	
 	//build body	
 	unsigned char *body_ = (unsigned char*)malloc(sizeof(unsigned char) * (msgInfo_ -> size_));
@@ -133,18 +138,27 @@ void ClientUnit::buildPacketToSend(unsigned char *msg_, unsigned char *send_this
 	}
 	//copy msg into body
 	std::memcpy(body_, msg_, (msgInfo_ -> size_) * sizeof(unsigned char));
+	std::memcpy(send_this_, drop_rate_, (DROPPING_LENGTH) * sizeof(unsigned char));
 	//copy header into send_this_
-	std::memcpy(send_this_, header_, (HEADER_LENGTH) * sizeof(unsigned char));
+//	std::memcpy(send_this_, header_, (HEADER_LENGTH) * sizeof(unsigned char));
+	std::memcpy(send_this_ + (DROPPING_LENGTH), header_, (HEADER_LENGTH) * sizeof(unsigned char));
 	//concatenate body_ with header_ in send_this_
-	std::memcpy((send_this_) + (HEADER_LENGTH), body_, msgInfo_ -> size_ * sizeof(unsigned char));
+	//std::memcpy((send_this_) + (HEADER_LENGTH), body_, msgInfo_ -> size_ * sizeof(unsigned char));
+	std::memcpy((send_this_) + (HEADER_LENGTH) + (DROPPING_LENGTH), body_, msgInfo_ -> size_ * sizeof(unsigned char));
 	free(body_);
 }
 
 //build header for sending
-void ClientUnit::buildHeader(unsigned char *message_, unsigned char *header_, MessageInfo * msgInfo_){
+//void ClientUnit::buildHeader(unsigned char *message_, unsigned char *header_, MessageInfo * msgInfo_){
+void ClientUnit::buildHeader(unsigned char *header_, MessageInfo * msgInfo_){
 	sprintf((char *) header_, "%7d", static_cast<int>(msgInfo_ -> size_));
 }
-	
+
+//build dropping rate for sending
+void ClientUnit::buildDropRate(unsigned char *drop_rate_, MessageInfo * msgInfo_){
+	sprintf((char *) drop_rate_, "%2d", static_cast<int>(msgInfo_ -> drop_rate_));
+}
+
 //server unit funcs
 ServerUnit::ServerUnit(asio::io_service& io_service, short port_, Queue<MessageInfo *> &inQueue, Queue<MessageInfo *> &outQueue):port_(port_), ec(), socket_(io_service), acceptor_(io_service, tcp::endpoint(tcp::v4(), port_)),
 inQueue(inQueue), outQueue(outQueue){
@@ -180,6 +194,26 @@ int ServerUnit::read(){
 		std::cout << "Malloc failed in ServerUnit::read ~ msgInfo_" << std::endl;
 		return EXIT_FAILURE;
 	}
+
+	//allocate memory for dropping rate
+	unsigned char *drop_rate_ = (unsigned char *)malloc(sizeof(unsigned char) * (DROPPING_LENGTH + 1));
+	if(drop_rate_ == NULL){
+		std::cout << "Malloc failed in ServerUnit::read ~ drop_rate_" << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	//read dropping rate from socket_
+	getDroppingRate(drop_rate_);
+
+	//check if the connection was closed by connected ClientUnit
+	if(ec == asio::error::eof){//connection closed by peer
+		std::cout << "ERROR: EOF REACHED: from reading dropping rate" << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	//insert dropping rate into message struct
+	msgInfo_ -> drop_rate_ = atoi((char *)drop_rate_);
+
 	//allocate memory for a header_
 	unsigned char *header_ = (unsigned char *)malloc(sizeof(unsigned char)*(HEADER_LENGTH + 1));
 	if(header_ == NULL){
@@ -210,7 +244,7 @@ int ServerUnit::read(){
 		std::cout << "ERROR: EOF REACHED: for body" << std::endl;
 		return EXIT_FAILURE;
 	}
-	
+	//std::cout << "Message Recieved: " << drop_rate_ << header_ << body_ << std::endl;
 	//std::cout << "Message Recieved: " << header_ << body_ << std::endl;
 	//insert message into msg struct
 	msgInfo_ -> msg_ = body_;
@@ -218,7 +252,22 @@ int ServerUnit::read(){
 	inQueue.push(msgInfo_);
 	return EXIT_SUCCESS;
 }
+
+//get dropping_rate_ from socket
+void ServerUnit::getDroppingRate(unsigned char *drop_rate_){
 	
+	//read dropping rate
+	long bytes_read_ = asio::read(socket_, asio::buffer(drop_rate_, DROPPING_LENGTH), ec);
+	
+	//set delimeter
+	drop_rate_[DROPPING_LENGTH] = '\0';
+
+	//check if we reada wrong amount of bytes
+	if(bytes_read_ != DROPPING_LENGTH && bytes_read_ != 0){
+		std::cout << "Incorrect number of bytes read when reading dropping rate" << std::endl;
+	}	
+}
+
 //retrieve header of packet from socket
 void ServerUnit::getHeader(unsigned char *header_){
 	
@@ -228,7 +277,7 @@ void ServerUnit::getHeader(unsigned char *header_){
 	header_[HEADER_LENGTH] = '\0';
 	
 	//check if we read wrong amount of bytes from socket
-	if(bytes_read_ != 7 && bytes_read_ != 0){
+	if(bytes_read_ != HEADER_LENGTH && bytes_read_ != 0){
 		std::cout << "Incorrect number of bytes read when reading header" << std::endl;
 	}
 }
